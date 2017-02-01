@@ -169,7 +169,7 @@ MainWindow::MainWindow(QWidget *parent) :
     PlainTextEditInfo.appendPlainText(asHostName);
 
     QMessageBox::information(this, "Missing connection parameters", "Program will be closed", QMessageBox::Ok);
-    fnSendEmail(0, QString("%1 @ %2: To DefautRecipient-> Missing connection parameters").arg(__LINE__).arg(__FILENAME__), ecSendDBEvents);
+    fnSendEmail(NULL, 0, QString("%1 @ %2: To DefautRecipient-> Missing connection parameters").arg(__LINE__).arg(__FILENAME__), ecSendDBEvents);
     exit(-1);
   }
 
@@ -415,7 +415,7 @@ MainWindow::MainWindow(QWidget *parent) :
   qDebug() << DBGINFO << "UDP HEARTBEAT RECEIVE" << boResult;
   if (!boResult)
   {
-    fnSendEmail(0, QString("%1 @ %2: Can not registr Hearbeat Port").arg(__LINE__).arg(__FILENAME__), ecSendDBEvents);
+    fnSendEmail(NULL, 0, QString("%1 @ %2: Can not registr Hearbeat Port").arg(__LINE__).arg(__FILENAME__), ecSendDBEvents);
   }
   connect(UdpSocketOBU, SIGNAL(readyRead()), this, SLOT(fnOBUPacketReceived()));
 
@@ -424,10 +424,10 @@ MainWindow::MainWindow(QWidget *parent) :
   iResult = iResult;
 
   //send message about program start
-  fnSendEmail(0, QString("%1 @ %2: Program start").arg(__LINE__).arg(__FILENAME__), ecSendDBEvents);
+  fnSendEmail(NULL, 0, QString("%1 @ %2: Program start").arg(__LINE__).arg(__FILENAME__), ecSendDBEvents);
   if (iDBResult >= 0)
   {
-    fnSendEmail(0, QString("%1 @ %2: Connected do DB").arg(__LINE__).arg(__FILENAME__), ecSendDBEvents);
+    fnSendEmail(NULL, 0, QString("%1 @ %2: Connected do DB").arg(__LINE__).arg(__FILENAME__), ecSendDBEvents);
   }
 }
 
@@ -474,7 +474,7 @@ int MainWindow::fnConnectToDB(bool boForceExit)
   if(!boResult)
   {
 
-    fnSendEmail( 0, QString("%1 @ %2: To DefautRecipient-> Not Connected do DB").arg(__LINE__).arg(__FILENAME__), ecSendDBEvents);
+    fnSendEmail(NULL, 0, QString("%1 @ %2: To DefautRecipient-> Not Connected do DB").arg(__LINE__).arg(__FILENAME__), ecSendDBEvents);
 
     if (boForceExit)
     {
@@ -496,7 +496,7 @@ int MainWindow::fnConnectToDB(bool boForceExit)
   }
   else
   {
-    fnSendEmail(0, QString("%1 @ %2: To DefautRecipient-> Connected do DB").arg(__LINE__).arg(__FILENAME__), ecSendDBEvents);
+    fnSendEmail(NULL, 0, QString("%1 @ %2: To DefautRecipient-> Connected do DB").arg(__LINE__).arg(__FILENAME__), ecSendDBEvents);
 
     iNumberOfConnectAttempts = 0;
     LastDateTimeConnected = QDateTime::currentDateTimeUtc();
@@ -533,7 +533,7 @@ int MainWindow::fnTestConnection(void)
   }
   else
   {
-    fnSendEmail(0, QString("%1 @ %2: DISCONNECTED").arg(__LINE__).arg(__FILENAME__), ecSendDBEvents);
+    fnSendEmail(NULL, 0, QString("%1 @ %2: DISCONNECTED").arg(__LINE__).arg(__FILENAME__), ecSendDBEvents);
     ui->Lb_ConnStatus->setText("DISCONNECTED");
     ui->plainTextEdit_dBInfo->clear();
     ui->plainTextEdit_dBInfo->appendPlainText("DISCONNECTED");
@@ -690,136 +690,14 @@ void MainWindow::on_Btn_FillVehicleList_fromDB_clicked()
       fnSendEmail(tmpVehicle, 0, QString("%1 @ %2: %3 Error:\r\n\r\n %4").arg(__LINE__).arg(__FILENAME__).arg("tProjectList").arg(ProjectTableQuery.lastError().text()), ecSendDBEvents);
     }
 
-    //Connect only for BCU project name (OBU used
-    if (tmpVehicle->asProjectName == PROJECT_NAME_BVG_2010)
-    {
-      connect(tmpVehicle, SIGNAL(fnSignalSendToOBU(const QByteArray &, QString , word)),
-              this,                  SLOT  (fnSendToOBU(const QByteArray &, QString, word)));
-    }
 
 
 
-    //***********************
-    // find last JAMIC ID
-    //***********************
-    //8.8.2016
-    //not here, find it just before writing...
-    tmpVehicle->dwLastKnownJamicID = UNKNOWN_JAMIC_ID;
-    tmpVehicle->boSuccesToGetLastKnownJamicID = false;
-
-    //25.11.2016
-    //again we try to get Jamic id here....
-    fnGetLastJamicIDFromDB(tmpVehicle, 0);
-
-    //***********************
-    // find last index and date from log table
-    //***********************
-    QSqlQuery EventTableQuery;
-    //create databaze file name
-    QString asEventLogTable = QString("tVehicleID%1EventLog").arg(tmpVehicle->iVehicleId);
-
-    boResult = EventTableQuery.exec("SELECT  `idRowEventLog`,  `EventDate`,  `EventTime`, `EventIndex`, `SeqNum` "
-                                    "FROM " + asEventLogTable + " "
-                                    "ORDER BY `EventDate` DESC, `EventTime` DESC, `SeqNum` DESC "
-                                    "LIMIT 1 "
-                                    ";");
-
-    QDate LastDate;
-    QTime LastTime;
-    int SeqNum;
-    if (boResult && EventTableQuery.size() == 1)
-    {
-      EventTableQuery.next();
-      tmpVehicle->LastReadLogRow.wIndex    =     EventTableQuery.value(0).toInt();
-      LastDate = QDate::fromString(EventTableQuery.value(1).toString(), "yyyy-MM-dd");
-      LastTime = QTime::fromString(EventTableQuery.value(2).toString(), "hh:mm:ss");
-      SeqNum   = EventTableQuery.value(4).toInt();
-      qDebug() << DBGINFO << "date/time" << LastTime.hour() << LastTime.minute() << LastTime.second()
-                              << LastDate.day()  << LastDate.month()  << LastDate.year();
-
-      unsigned char Date[6];
-      Date[0] = LastTime.hour();  //0.byte je Hodina
-      Date[1] = LastTime.minute();//1.byte je Minuta
-      Date[2] = LastTime.second();//2.byte je Sekunda
-      Date[3] = LastDate.day();   //3.byte je Den
-      Date[4] = LastDate.month(); //4.byte je Mesic
-      Date[5] = LastDate.year() - 2000;  //5.byte je Rok
 
 
 
-      tmpVehicle->LastReadLogRow.dwTime    =  TLcsTime::fnDateToEpocha(Date);
-      tmpVehicle->LastReadLogRow.wCode     =  EventTableQuery.value(3).toInt();
-      tmpVehicle->LastReadLogRow.wVar      =  0xFFFF;
-      tmpVehicle->LastReadLogRow.dwDurTime =  0xFFFFFFFF;
-      tmpVehicle->LastReadLogRow.wVersion  =  0xFFFF;
-      qDebug() << DBGINFO << tmpVehicle->LastReadLogRow.dwTime;
-      tmpVehicle->asDefaultTime = TLcsTime(tmpVehicle->LastReadLogRow.dwTime).toTimeString();
-      tmpVehicle->asDefaultDate = TLcsTime(tmpVehicle->LastReadLogRow.dwTime).toDateString();
-     // if you do not want to debug all vehicles set conditions here..
-      tmpVehicle->boDebugWrite = true;
 
 
-      //DEBUG CODE
-      //tmpQuerySchedulerItem->LastReadLogRow.dwTime = 0;
-
-    }
-    else
-    {
-      tmpVehicle->fnSetLastReadRowToUnknown_Log();
-      SeqNum = -1;
-    }
-
-
-    qDebug() << DBGINFO << EventTableQuery.lastError().text();
-    if (!boResult & tmpVehicle->LastDateTimeOfReadRow_Log.isValid())  //table is created at first attempt to write data...
-    {
-      fnSendEmail(tmpVehicle, 0, QString("%1 @ %2: %3 Error:\r\n %4").arg(__LINE__).arg(__FILENAME__).arg(asEventLogTable).arg(EventTableQuery.lastError().text()), ecSendDBEvents);
-    }
-
-    qDebug() << DBGINFO << "LastRowFromTable" << tmpVehicle->LastReadLogRow.wIndex << tmpVehicle->LastReadLogRow.dwTime;
-    iValidVehicles++;
-
-    //Debug code. Write info about last vehicle log state to file.
-    IndexDebugTestStream <<"id:"
-                         << tmpVehicle->iVehicleId
-                         <<"; Num:"
-                         << tmpVehicle->iVehicleNumber
-                         <<"; Index:"
-                         << tmpVehicle->LastReadLogRow.wIndex
-                         << "; LcsTime:"
-                         << tmpVehicle->LastReadLogRow.dwTime
-                         << "; Date:"
-                         << LastDate.toString("yyyy-MM-dd")
-                         << "; Time:"
-                         << LastTime.toString("hh:mm:ss")
-                         << "; SeqNum:"
-                         << SeqNum
-                         ;
-
-    IndexDebugTestStream << endl;
-
-    //General debug
-    if(boGeneralDebugOK && tmpVehicle->boDebugWrite)
-    {
-      GeneralDebugStream   << DBGINFO << ";" << TIMEINFO << endl;
-      GeneralDebugStream   <<"id:"
-                           << tmpVehicle->iVehicleId
-                           <<"; Num:"
-                           << tmpVehicle->iVehicleNumber
-                           <<"; Index:"
-                           << tmpVehicle->LastReadLogRow.wIndex
-                           << "; LcsTime:"
-                           << tmpVehicle->LastReadLogRow.dwTime
-                           << "; Date:"
-                           << LastDate.toString("yyyy-MM-dd")
-                           << "; Time:"
-                           << LastTime.toString("hh:mm:ss")
-                           << "; SeqNum:"
-                           << SeqNum
-                           ;
-      GeneralDebugStream  << endl;
-      GeneralDebugStream.flush();
-    }
 
   }
   //Debug code. Write info about last vehicle log state to file. Close file
@@ -849,7 +727,7 @@ void MainWindow::on_Btn_FillVehicleList_fromDB_clicked()
 
 
   //create new
-  ui->tableWidget_QueryStatus->setRowCount(VehicleListToQuery.count());
+  ui->tableWidget_QueryStatus->setRowCount(VehicleList.count());
   //add Items to Table
   for (int irow = 0; irow < ui->tableWidget_QueryStatus->rowCount(); ++irow)
   {
@@ -951,77 +829,16 @@ void MainWindow::timerEvent(QTimerEvent * event)
     //Call each Item Timer
 
     int iRow = 0;
-    foreach (TQuerySchedulerItem *tmpQuerySchedulerItem, VehicleListToQuery)
+    foreach (TVehicle *tmpVehicle, VehicleList)
     {
-      if (tmpQuerySchedulerItem != NULL)
-      {
-        //reset time if requested
-        if(iResetTimerReq_Log == tmpQuerySchedulerItem->iVehicleId)
-        {
-          tmpQuerySchedulerItem->iQueryStatusTimer_Log = 0;
-          iResetTimerReq_Log = -1;
-        }
-
-        if (iResetTimerReq_OpData == tmpQuerySchedulerItem->iVehicleId)
-        {
-          tmpQuerySchedulerItem->iQueryStatusTimer_OpData = 0;
-          iResetTimerReq_OpData = -1;
-        }
-
-//        //debug code
-//        if (tmpQuerySchedulerItem->iVehicleId == 18)
-//        {
-//          tmpQuerySchedulerItem->boCommunicationActive = true;
-//          QDateTime MyDebugDate(QDate(2016, 10, 10), QTime(8, 30, 0));
-//          tmpQuerySchedulerItem->LastDateTimeOfReadRow_Log = MyDebugDate;
-//        }
-
-        //check vehicle active status
-        if (tmpQuerySchedulerItem->boCommunicationActive && tmpQuerySchedulerItem->LastDateTimeOfReadRow_Log.isValid())
-        {
-          //check time from the last vehicle access for LogActivity
-          qint64 iTimeDiff = QDateTime::currentDateTimeUtc().toMSecsSinceEpoch() - tmpQuerySchedulerItem->LastDateTimeOfReadRow_Log.toMSecsSinceEpoch();
-          if (iTimeDiff > (KN_MAX_VEHICLE_IDLE_TIME_HOURS * 3600 * 1000))
-          {
-            tmpQuerySchedulerItem->boCommunicationActive = false;
-            QString asMsgToSend = QString("%1 @ %2: Vehicle No: %3 From Project: %4 Not responding longer for: %5 hours")
-                                  .arg(__LINE__)
-                                  .arg(__FILENAME__)
-                                  .arg(tmpQuerySchedulerItem->iVehicleNumber)
-                                  .arg(tmpQuerySchedulerItem->asProjectName)
-                                  .arg(iTimeDiff/(1000 * 3600));
-
-
-
-
-
-            fnSendEmail(tmpQuerySchedulerItem, 0, asMsgToSend, ecPeriodicalReport, "Vehicle not responding");
-          }
-        }
-
-        //run scheduler core function
-        tmpQuerySchedulerItem->fnTimer(AUX_TIMER_PERIOD);
 
         //update info table
-        SET_TABLE_INT    (iRow, col_infotable_vehicle_id,      tmpQuerySchedulerItem->iVehicleId);
-        SET_TABLE_INT    (iRow, col_infotable_jamic_id,        (int)tmpQuerySchedulerItem->dwLastKnownJamicID);
-        SET_TABLE_STRING (iRow, col_infotable_IPV4,            tmpQuerySchedulerItem->asVehicleIP);
-        SET_TABLE_INT    (iRow, col_infotable_timer,           tmpQuerySchedulerItem->iQueryStatusTimer_Log);
-        SET_TABLE_INT    (iRow, col_infotable_status,          tmpQuerySchedulerItem->eQueryStatus_Log);
-        SET_TABLE_INT    (iRow, col_infotable_attempts,        tmpQuerySchedulerItem->iQueryAttemptCounter_Log);
-        SET_TABLE_STRING (iRow, col_infotable_when,            tmpQuerySchedulerItem->LastDateTimeOfReadRow_Log.toString( Qt::SystemLocaleShortDate));
-        SET_TABLE_INT    (iRow, col_infotable_rows,            tmpQuerySchedulerItem->iLastNumberOfReadRow);
-        SET_TABLE_INT    (iRow, col_infotable_newdata,         (int)(tmpQuerySchedulerItem->boStqMoreDataExpected_Log));
+        SET_TABLE_INT    (iRow, col_infotable_vehicle_id,      tmpVehicle->iVehicleId);
 
-        SET_TABLE_INT    (iRow, col_infotable_timer_opdata,    tmpQuerySchedulerItem->iQueryStatusTimer_OpData);
-        SET_TABLE_INT    (iRow, col_infotable_status_opdata,   tmpQuerySchedulerItem->eQueryStatus_OpData);
-        SET_TABLE_INT    (iRow, col_infotable_attempts_opdata, tmpQuerySchedulerItem->iQueryAttemptCounter_OpData);
-        SET_TABLE_STRING (iRow, col_infotable_when_opdata,     tmpQuerySchedulerItem->LastDateTimeOfReadRow_OpData.toString( Qt::SystemLocaleShortDate));
-        SET_TABLE_INT    (iRow, col_infotable_newdata_opdata,  (int)(tmpQuerySchedulerItem->boStqMoreDataExpected_OpData));
-        SET_TABLE_INT    (iRow, col_infotable_newdata_versions, (int)(tmpQuerySchedulerItem->boStqMoreDataExpected_OpData));
+        SET_TABLE_STRING (iRow, col_infotable_IPV4,            tmpVehicle->asVehicleIP);
 
         SET_TABLE_TEXT   (iRow, col_infotable_hb_rqe, CLICK);
-      }
+
       iRow++;
     }
   }
@@ -1032,11 +849,10 @@ void MainWindow::timerEvent(QTimerEvent * event)
 void MainWindow::on_btn_Debug1_clicked()
 {
   //debug to send request
-  if(VehicleListToQuery.isEmpty()) return;
-  TQuerySchedulerItem *tmpQuerySchedulerItem = VehicleListToQuery.at(0);
-  if(tmpQuerySchedulerItem == NULL) return;
-  tmpQuerySchedulerItem->fnRequestData_Log();
-//  tmpQuerySchedulerItem->fnRequest_LOG_TROL_DEBUG();
+  if(VehicleList.isEmpty()) return;
+  TVehicle *tmpVehicle = VehicleList.at(0);
+  if(tmpVehicle == NULL) return;
+
 }
 
 
@@ -1060,91 +876,77 @@ void MainWindow::on_tableWidget_QueryStatus_clicked(const QModelIndex &index)
   qDebug() << DBGINFO << index.row() << " " << index.column() << iVehicleId;
   if(iVehicleId >= 0)
   {
-    //search for Vehicle id VehicleListToQuery Items
-    foreach (TQuerySchedulerItem *tmpQuerySchedulerItem, VehicleListToQuery)
+    //search for Vehicle id VehicleList Items
+    foreach (TVehicle *tmpVehicle, VehicleList)
     {
-      if (tmpQuerySchedulerItem != NULL)
+      if (tmpVehicle != NULL)
       {
-        if (tmpQuerySchedulerItem->iVehicleId == iVehicleId)
+        if (tmpVehicle->iVehicleId == iVehicleId)
         {
           switch (index.column())
           {
             case col_infotable_vehicle_id:
-              //DEBUG CODE
-              foreach (TReadLogRow tmpReadLogRow, tmpQuerySchedulerItem->listReadRow)
-              {
-                qDebug() << DBGINFO << tmpReadLogRow.wIndex
-                         << tmpReadLogRow.dwTime
-                         << "("
-                         << TLcsTime(tmpReadLogRow.dwTime).toDateString()
-                         << TLcsTime(tmpReadLogRow.dwTime).toTimeString()
-                         << ")"
-                         << tmpReadLogRow.wCode
-                         << tmpReadLogRow.wVar
-                         << tmpReadLogRow.dwDurTime
-                         << tmpReadLogRow.wVersion;
-              }
-              break;
+
+            break;
 
             case col_infotable_IPV4:
 
             break;
 
             case col_infotable_timer:
-              tmpQuerySchedulerItem->iQueryStatusTimer_Log = 0;
+
             break;
 
             case col_infotable_status:
-              tmpQuerySchedulerItem->eQueryStatus_Log = stqINIT;
+
             break;
 
             case col_infotable_attempts:
-              tmpQuerySchedulerItem->iQueryAttemptCounter_Log = 0;
+
             break;
 
             case col_infotable_when:
-              tmpQuerySchedulerItem->LastDateTimeOfReadRow_Log = QDateTime::currentDateTimeUtc();
+
             break;
 
             case col_infotable_rows:
-              tmpQuerySchedulerItem->listReadRow.clear();
-              tmpQuerySchedulerItem->fnSetLastReadRowToUnknown_Log();
+
             break;
 
             case col_infotable_newdata:
-              tmpQuerySchedulerItem->boStqMoreDataExpected_Log = !tmpQuerySchedulerItem->boStqMoreDataExpected_Log;
+
             break;
 
             case col_infotable_timer_opdata:
-              tmpQuerySchedulerItem->iQueryStatusTimer_OpData = 0;
+
             break;
 
             case col_infotable_status_opdata:
-              tmpQuerySchedulerItem->eQueryStatus_OpData = stqINIT;
+
             break;
 
             case col_infotable_attempts_opdata:
-              tmpQuerySchedulerItem->iQueryAttemptCounter_OpData = 0;
+
             break;
 
             case col_infotable_when_opdata:
-              //TODO read?write
-              tmpQuerySchedulerItem->LastDateTimeOfReadRow_OpData = QDateTime::currentDateTimeUtc();
+
             break;
 
             case col_infotable_newdata_opdata:
-              tmpQuerySchedulerItem->boStqMoreDataExpected_OpData = !tmpQuerySchedulerItem->boStqMoreDataExpected_OpData;
+
             break;
 
             case col_infotable_newdata_versions:
-              tmpQuerySchedulerItem->boStqMoreDataExpected_Versions = !tmpQuerySchedulerItem->boStqMoreDataExpected_Versions;
+
             break;
 
             case col_infotable_hb_rqe:
-              tmpQuerySchedulerItem->fnRequestHeartbeat();
+
             break;
 
             default:
+
             break;
           }
 
@@ -1417,9 +1219,9 @@ void  MainWindow::fnReadFromSocket(void)
 
 
 
-  foreach (TQuerySchedulerItem *tmpQuerySchedulerItem, VehicleListToQuery)
+  foreach (TVehicle *tmpVehicle, VehicleList)
   {
-    if (tmpQuerySchedulerItem != NULL)
+    if (tmpVehicle != NULL)
     {
 
       asBtnReset_Log =
@@ -1430,7 +1232,7 @@ void  MainWindow::fnReadFromSocket(void)
                "xhttp.open(\"POST\", \"\", true);"
                "xhttp.send(\"cmdResetTimer_Log_%1_\");"
              "}"
-             "</script>").arg(tmpQuerySchedulerItem->iVehicleId);
+             "</script>").arg(tmpVehicle->iVehicleId);
 
       asBtnReset_OpData =
              QString("<button type=\"button\" onclick=\"proceed_OpData%1()\">R</button>"
@@ -1440,7 +1242,7 @@ void  MainWindow::fnReadFromSocket(void)
                "xhttp.open(\"POST\", \"\", true);"
                "xhttp.send(\"cmdResetTimer_OpData_%1_\");"
              "}"
-             "</script>").arg(tmpQuerySchedulerItem->iVehicleId);
+             "</script>").arg(tmpVehicle->iVehicleId);
 
 
 
@@ -1453,24 +1255,24 @@ void  MainWindow::fnReadFromSocket(void)
       SenderSocket->write("<tr>");
 
       SenderSocket->write("<td>");
-      SenderSocket->write(QString("%1").arg(tmpQuerySchedulerItem->iVehicleId).toLatin1());
+      SenderSocket->write(QString("%1").arg(tmpVehicle->iVehicleId).toLatin1());
       SenderSocket->write("</td>");
 
       SenderSocket->write("<td>");
-      SenderSocket->write(QString("%1").arg(tmpQuerySchedulerItem->iVehicleNumber).toLatin1());
+      SenderSocket->write(QString("%1").arg(tmpVehicle->iVehicleNumber).toLatin1());
       SenderSocket->write("</td>");
 
       SenderSocket->write("<td>");
-      SenderSocket->write(QString("%1").arg(tmpQuerySchedulerItem->asProjectName).toLatin1());
+      SenderSocket->write(QString("%1").arg(tmpVehicle->asProjectName).toLatin1());
       SenderSocket->write("</td>");
 
       SenderSocket->write("<td>");
-      SenderSocket->write(QString("%1").arg(tmpQuerySchedulerItem->asVehicleIP).toLatin1());
+      SenderSocket->write(QString("%1").arg(tmpVehicle->asVehicleIP).toLatin1());
       SenderSocket->write("</td>");
 
       SenderSocket->write("<td>");
       SenderSocket->write("<div style=\"font-family:Courier New;\">");
-      SenderSocket->write(QString("0x%1").arg(tmpQuerySchedulerItem->dwLastKnownJamicID, 8, 16, QLatin1Char('0')).toLatin1());
+      SenderSocket->write(QString(" ").toLatin1());
       SenderSocket->write("</div>");
       SenderSocket->write("</td>");
 
@@ -1479,43 +1281,43 @@ void  MainWindow::fnReadFromSocket(void)
       SenderSocket->write("</td>");
 
       SenderSocket->write("<td>");
-      SenderSocket->write(QString("%1").arg((tmpQuerySchedulerItem->iQueryStatusTimer_Log/1000)).toLatin1());
+      SenderSocket->write(QString(" ").toLatin1());
       SenderSocket->write("</td>");
 
       SenderSocket->write("<td>");
-      SenderSocket->write(QString("%1").arg(tmpQuerySchedulerItem->eQueryStatus_Log).toLatin1());
+      SenderSocket->write(QString(" ").toLatin1());
       SenderSocket->write("</td>");
 
       SenderSocket->write("<td>");
-      SenderSocket->write(QString("%1").arg(tmpQuerySchedulerItem->iQueryAttemptCounter_Log).toLatin1());
+      SenderSocket->write(QString(" ").toLatin1());
       SenderSocket->write("</td>");
 
       SenderSocket->write("<td>");
-      SenderSocket->write(QString("%1").arg(tmpQuerySchedulerItem->asDefaultDate).toLatin1());
+      SenderSocket->write(QString(" ").toLatin1());
       SenderSocket->write("</td>");
 
       SenderSocket->write("<td>");
-      SenderSocket->write(QString("%1").arg(tmpQuerySchedulerItem->asDefaultTime).toLatin1());
+      SenderSocket->write(QString(" ").toLatin1());
       SenderSocket->write("</td>");
 
       SenderSocket->write("<td>");
-      SenderSocket->write(QString("%1").arg(tmpQuerySchedulerItem->iLastNumberOfReadRow).toLatin1());
+      SenderSocket->write(QString(" ").toLatin1());
       SenderSocket->write("</td>");
 
       SenderSocket->write("<td>");
-      SenderSocket->write(tmpQuerySchedulerItem->LastDateTimeOfReadRow_Log.toString( Qt::SystemLocaleShortDate).toLatin1());
+      SenderSocket->write(QString(" ").toLatin1());
       SenderSocket->write("</td>");
 
       SenderSocket->write("<td>");
-      SenderSocket->write(QString("%1").arg(tmpQuerySchedulerItem->iLastNumberOfWritedRow).toLatin1());
+      SenderSocket->write(QString(" ").toLatin1());
       SenderSocket->write("</td>");
 
       SenderSocket->write("<td>");
-      SenderSocket->write(tmpQuerySchedulerItem->LastDateTimeOfWritedRow_Log.toString( Qt::SystemLocaleShortDate).toLatin1());
+      SenderSocket->write(QString(" ").toLatin1());
       SenderSocket->write("</td>");
 
       SenderSocket->write("<td>");
-      SenderSocket->write(QString("%1").arg(tmpQuerySchedulerItem->boStqMoreDataExpected_Log).toLatin1());
+      SenderSocket->write(QString(" ").toLatin1());
       SenderSocket->write("</td>");
 
       SenderSocket->write("<td>");
@@ -1523,29 +1325,29 @@ void  MainWindow::fnReadFromSocket(void)
       SenderSocket->write("</td>");
 
       SenderSocket->write("<td>");
-      SenderSocket->write(QString("%1").arg(tmpQuerySchedulerItem->iQueryStatusTimer_OpData/1000).toLatin1());
+      SenderSocket->write(QString(" ").toLatin1());
       SenderSocket->write("</td>");
 
 
       SenderSocket->write("<td>");
-      SenderSocket->write(QString("%1").arg(tmpQuerySchedulerItem->eQueryStatus_OpData).toLatin1());
+      SenderSocket->write(QString(" ").toLatin1());
       SenderSocket->write("</td>");
 
 
       SenderSocket->write("<td>");
-      SenderSocket->write(QString("%1").arg(tmpQuerySchedulerItem->iQueryAttemptCounter_OpData).toLatin1());
+      SenderSocket->write(QString(" ").toLatin1());
       SenderSocket->write("</td>");
 
       SenderSocket->write("<td>");
-      SenderSocket->write(QString("%1").arg(tmpQuerySchedulerItem->LastDateTimeOfReadRow_OpData.toString( Qt::SystemLocaleShortDate)).toLatin1());
+      SenderSocket->write(QString(" ").toLatin1());
       SenderSocket->write("</td>");
 
       SenderSocket->write("<td>");
-      SenderSocket->write(QString("%1").arg(tmpQuerySchedulerItem->boStqMoreDataExpected_OpData).toLatin1());
+      SenderSocket->write(QString(" ").toLatin1());
       SenderSocket->write("</td>");
 
       SenderSocket->write("<td>");
-      SenderSocket->write(QString("%1").arg(tmpQuerySchedulerItem->boStqMoreDataExpected_OpData).toLatin1());
+      SenderSocket->write(QString(" ").toLatin1());
       SenderSocket->write("</td>");
 
 
@@ -1603,7 +1405,7 @@ void MainWindow::on_Btn_SendTestEmail_clicked()
 
 }
 
-void MainWindow::fnSendEmail(int iInfo, QString asEmailMessageToSend, TeEmailCategory eMailCategory, QString asAddToSubject)
+void MainWindow::fnSendEmail(TVehicle *tmpVehicle, int iInfo, QString asEmailMessageToSend, TeEmailCategory eMailCategory, QString asAddToSubject)
 {
 
   int iVehicleProjectId = -1;
@@ -1740,9 +1542,9 @@ void MainWindow::fnSendEmail(int iInfo, QString asEmailMessageToSend, TeEmailCat
                              + QString("VehPrjId: %1").arg(iVehicleProjectId)
                             );
 
-  if (tmpQuerySchedulerItem != NULL)
+  if (tmpVehicle != NULL)
   {
-    asIntroductionText += QString("\n\rVehicle id: %1").arg(tmpQuerySchedulerItem->iVehicleId);
+    asIntroductionText += QString("\n\rVehicle id: %1").arg(tmpVehicle->iVehicleId);
   }
 
   asIntroductionText += "\r\n";
@@ -1975,11 +1777,11 @@ QString MainWindow::fnAssembleHTMLReport(void)
 
 
   ADD_TO_HTML_NEW_LINE;
-  foreach (TQuerySchedulerItem *tmpQuerySchedulerItem, VehicleListToQuery)
+  foreach (TVehicle *tmpVehicle, VehicleList)
   {
     ADD_TO_HTML_NEW_LINE;
 
-    if (tmpQuerySchedulerItem != NULL)
+    if (tmpVehicle != NULL)
     {
 
       QString asBtnReset_Log = "x";
@@ -1988,24 +1790,24 @@ QString MainWindow::fnAssembleHTMLReport(void)
       ADD_TO_HTML_RETURN_TEXT("<tr>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpQuerySchedulerItem->iVehicleId).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpVehicle->iVehicleId).toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpQuerySchedulerItem->iVehicleNumber).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpVehicle->iVehicleNumber).toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpQuerySchedulerItem->asProjectName).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpVehicle->asProjectName).toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpQuerySchedulerItem->asVehicleIP).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpVehicle->asVehicleIP).toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
       ADD_TO_HTML_RETURN_TEXT("<div style=\"font-family:Courier New;\">");
-      ADD_TO_HTML_RETURN_TEXT(QString("0x%1").arg(tmpQuerySchedulerItem->dwLastKnownJamicID, 8, 16, QLatin1Char('0')).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString(" ").toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</div>");
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
@@ -2014,43 +1816,43 @@ QString MainWindow::fnAssembleHTMLReport(void)
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg((tmpQuerySchedulerItem->iQueryStatusTimer_Log/1000)).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString(" ").toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpQuerySchedulerItem->eQueryStatus_Log).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString(" ").toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpQuerySchedulerItem->iQueryAttemptCounter_Log).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString(" ").toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpQuerySchedulerItem->asDefaultDate).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString(" ").toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpQuerySchedulerItem->asDefaultTime).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString(" ").toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpQuerySchedulerItem->iLastNumberOfReadRow).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString(" ").toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(tmpQuerySchedulerItem->LastDateTimeOfReadRow_Log.toString( Qt::SystemLocaleShortDate).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString(" ").toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpQuerySchedulerItem->iLastNumberOfWritedRow).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString(" ").toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(tmpQuerySchedulerItem->LastDateTimeOfWritedRow_Log.toString( Qt::SystemLocaleShortDate).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString(" ").toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpQuerySchedulerItem->boStqMoreDataExpected_Log).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString(" ").toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
@@ -2058,29 +1860,29 @@ QString MainWindow::fnAssembleHTMLReport(void)
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpQuerySchedulerItem->iQueryStatusTimer_OpData/1000).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString(" ").toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpQuerySchedulerItem->eQueryStatus_OpData).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString(" ").toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpQuerySchedulerItem->iQueryAttemptCounter_OpData).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString(" ").toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpQuerySchedulerItem->LastDateTimeOfReadRow_OpData.toString( Qt::SystemLocaleShortDate)).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString(" ").toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpQuerySchedulerItem->boStqMoreDataExpected_OpData).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString(" ").toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
       ADD_TO_HTML_RETURN_TEXT("<td>");
-      ADD_TO_HTML_RETURN_TEXT(QString("%1").arg(tmpQuerySchedulerItem->boStqMoreDataExpected_OpData).toLatin1());
+      ADD_TO_HTML_RETURN_TEXT(QString(" ").toLatin1());
       ADD_TO_HTML_RETURN_TEXT("</td>");
 
 

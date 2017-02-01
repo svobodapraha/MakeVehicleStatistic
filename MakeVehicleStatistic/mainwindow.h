@@ -126,7 +126,7 @@ public:
   QString fnAssembleHTMLReport();
 
 public slots:
-  void fnSendEmail(int iInfo, QString asEmailMessageToSend, TeEmailCategory eMailCategory, QString asAddToSubject = "");
+  void fnSendEmail(TVehicle*, int iInfo, QString asEmailMessageToSend, TeEmailCategory eMailCategory, QString asAddToSubject = "");
 
 
 private slots:

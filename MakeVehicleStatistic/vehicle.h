@@ -26,6 +26,8 @@ public:
    TeProjectType eProjectType;
    QString asProjectName;
    QString asVehicleIP;
+   unsigned long dwVehicleIP;
+
 
 
 };

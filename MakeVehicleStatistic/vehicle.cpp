@@ -6,7 +6,8 @@ TVehicle::TVehicle(int iVehicleIdInit):
   iProjectId(0),
   eProjectType(prjUNKNOWN),
   asProjectName(""),
-  asVehicleIP("")
+  asVehicleIP(""),
+  dwVehicleIP(0)
 {
 
 }
