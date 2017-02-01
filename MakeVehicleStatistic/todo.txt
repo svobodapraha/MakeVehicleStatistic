@@ -1,0 +1,14 @@
+18:23 17.10.2016
+promìnná iLastNumberOfWritedRow je plnìna špatnou hodnotou - je stejná jako poèet pøeètených øádkù...
+13:47 14.11.2016 opraveno..
+
+
+18:24 17.10.2016
+Zkontrolovat mechanismus ètení posledního zapsaného indexu a datum/cas z log tabulky pøi startu programu
+vypadá to jako když to vyèítá už zapsaná data - což si myslím že by nemìlo....
+
+16:49 21.10.2016
+pøestupné roky nejsou poèítány správnì. V roce 2100 bude problém.
+
+13:48 14.11.2016
+Jak s "modely" po novém pøipojení databáze? Staèí "select"?
