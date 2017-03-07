@@ -14,6 +14,7 @@
 //GLOBAL VAR
 
 QSqlDatabase TramDB;
+QSqlDatabase LocalStatisticDB;
 QList<TVehicle*> VehicleList;
 
 
@@ -319,7 +320,39 @@ MainWindow::MainWindow(QWidget *parent) :
   int iDBResult = 0;
   iDBResult = fnConnectToDB(true);
 
+  //connest to SQLITE Database...
+  LocalStatisticDB = QSqlDatabase::addDatabase("QSQLITE", "StatisticDB");
+  LocalStatisticDB.setDatabaseName(":memory:");
+  boResult = LocalStatisticDB.open();
+  if(boResult)
+  {
+    qDebug() << "Statistic db opened OK";
+  }
+  else
+  {
+    qDebug() << "Error open statistic db " << LocalStatisticDB.lastError().text();
+  }
 
+  QSqlQuery StatisticQuery(LocalStatisticDB);
+  //create statistic table:
+  boResult = StatisticQuery.exec
+  (
+     "create table STATISTIC ("
+       "id integer primary key autoincrement, "
+       "EventCode int, "
+       "NumberOf int"
+     ");"
+  );
+  qDebug() << boResult << "create" << StatisticQuery.lastError().text();
+  boResult = StatisticQuery.exec
+  (
+    "insert into STATISTIC values (1,2,2);"
+  );
+ qDebug() << boResult << "insert" << StatisticQuery.lastError().text();
+
+
+
+  //***** TO DO ****
 
   //set dbTables for vehicles and find columns
   mVehicleModel = new VehicleRelationalTableModel(this);
@@ -510,6 +543,7 @@ int MainWindow::fnConnectToDB(bool boForceExit)
     ui->plainTextEdit_dBInfo->appendPlainText(QString("Last Con: ") + LastDateTimeDisConnected.toString( Qt::SystemLocaleShortDate));
     iReturnValue = 0;
   }
+
   return(iReturnValue);
 
 }
