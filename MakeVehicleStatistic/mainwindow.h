@@ -86,11 +86,13 @@ private:
   QTextStream GeneralDebugStream;
   bool boGeneralDebugOK;
   QUdpSocket * UdpSocketOBU;
+  int iLastSelectedVehicleForStatistic;
 
 
 //models
   VehicleRelationalTableModel *mVehicleModel;
   QSqlRelationalTableModel    *mSpamModel;
+  QSqlRelationalTableModel    *mFailureCountModel;
 
 //timer and comm part
 protected:
@@ -136,6 +138,8 @@ private slots:
 
   void on_Btn_SendTestEmail_clicked();
   void on_Btn_HtmlTest_clicked();
+  void on_btnMakeFailureStatistic_clicked();
+  void on_calendarWidget_statisticFrom_selectionChanged();
 };
 
 

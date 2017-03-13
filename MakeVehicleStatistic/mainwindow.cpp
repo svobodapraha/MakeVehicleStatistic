@@ -46,6 +46,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
 {
   ui->setupUi(this);
+  iLastSelectedVehicleForStatistic = -1;
 
 //Int Debug File
   GeneralDebugFile.setFileName
@@ -74,7 +75,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
 
   //display version
-  setWindowTitle("ReadLogFromVehicles V:" + QApplication::applicationVersion());
+  setWindowTitle("MakeVehicleStatistic V:" + QApplication::applicationVersion());
 
   //ini ui components
   ui->plainTextEdit_dBInfo->setReadOnly(true);
@@ -317,45 +318,19 @@ MainWindow::MainWindow(QWidget *parent) :
 
   //connect to db
   TramDB = QSqlDatabase::addDatabase("QMYSQL");
+  mVehicleModel = new VehicleRelationalTableModel(this);
+  mSpamModel = new QSqlRelationalTableModel(this);
+
   int iDBResult = 0;
   iDBResult = fnConnectToDB(true);
 
-  //connest to SQLITE Database...
-  LocalStatisticDB = QSqlDatabase::addDatabase("QSQLITE", "StatisticDB");
-  LocalStatisticDB.setDatabaseName(":memory:");
-  boResult = LocalStatisticDB.open();
-  if(boResult)
-  {
-    qDebug() << "Statistic db opened OK";
-  }
-  else
-  {
-    qDebug() << "Error open statistic db " << LocalStatisticDB.lastError().text();
-  }
 
-  QSqlQuery StatisticQuery(LocalStatisticDB);
-  //create statistic table:
-  boResult = StatisticQuery.exec
-  (
-     "create table STATISTIC ("
-       "id integer primary key autoincrement, "
-       "EventCode int, "
-       "NumberOf int"
-     ");"
-  );
-  qDebug() << boResult << "create" << StatisticQuery.lastError().text();
-  boResult = StatisticQuery.exec
-  (
-    "insert into STATISTIC values (1,2,2);"
-  );
- qDebug() << boResult << "insert" << StatisticQuery.lastError().text();
 
 
 
   //***** TO DO ****
 
   //set dbTables for vehicles and find columns
-  mVehicleModel = new VehicleRelationalTableModel(this);
   mVehicleModel->setEditStrategy(QSqlTableModel::OnManualSubmit);
   mVehicleModel->setTable("tVehicleList");
   mVehicleModel->select();
@@ -401,7 +376,6 @@ MainWindow::MainWindow(QWidget *parent) :
   ui->tableWidget_QueryStatus->setHorizontalHeaderLabels(tableHeader);
 
   //set table for SMTP a find columns
-  mSpamModel = new QSqlRelationalTableModel(this);
   mSpamModel->setEditStrategy(QSqlTableModel::OnManualSubmit);
   mSpamModel->setTable("tSpamList");
   mSpamModel->select();
@@ -424,6 +398,51 @@ MainWindow::MainWindow(QWidget *parent) :
   //EXIT_WHEN_FIELD_NOT_FOUND(col_SpamList_boPeriodicalReport);
   col_SpamList_tProjectList_idProject = mSpamModel->fieldIndex("tProjectList_idProject");
   //EXIT_WHEN_FIELD_NOT_FOUND(col_SpamList_tProjectList_idProject)
+
+
+  //connest to SQLITE Database...
+  LocalStatisticDB = QSqlDatabase::addDatabase("QSQLITE", "StatisticDB");
+  mFailureCountModel = new QSqlRelationalTableModel(this, LocalStatisticDB);
+  LocalStatisticDB.setDatabaseName(":memory:");
+  boResult = LocalStatisticDB.open();
+  if(boResult)
+  {
+    qDebug() << "Statistic db opened OK";
+  }
+  else
+  {
+    qDebug() << "Error open statistic db " << LocalStatisticDB.lastError().text();
+  }
+
+  QSqlQuery StatisticQuery(LocalStatisticDB);
+  //create statistic table:
+  boResult = StatisticQuery.exec("DROP TABLE tFailureCount; ");
+  boResult = StatisticQuery.exec
+  (
+       "create table tFailureCount ("
+       "id integer primary key autoincrement, "
+       "VehicleId int, "
+       "EventIndex int, "
+       "SourceUnit varchar, "
+       "FailureCount int "
+       ");"
+  );
+  qDebug() << DBGINFO << boResult << "create" << StatisticQuery.lastError().text();
+
+  //Test data
+  boResult = StatisticQuery.exec
+  (
+    "insert into tFailureCount values (1, 2, \"JAMIC\", 2);"
+  );
+  qDebug() << boResult << "insert" << StatisticQuery.lastError().text();
+
+  //set models a tables
+  mFailureCountModel->setEditStrategy(QSqlTableModel::OnManualSubmit);
+  mFailureCountModel->setTable("tFailureCount");
+  boResult = mFailureCountModel->select();
+  ui->tableView_FailureCount->setModel(mFailureCountModel);
+  qDebug() << boResult << "select";
+
 
   //start timers
   iMainTimerID = this->startTimer(MAIN_TIMER_PERIOD);
@@ -555,11 +574,11 @@ int MainWindow::fnTestConnection(void)
   QSqlQuery TestConQuery;
   bool boResult;
   boResult = TestConQuery.exec("SELECT 1 FROM tVehicleList");
-  qDebug() << DBGINFO << boResult
-           << TestConQuery.lastError().number()
-           << TestConQuery.lastError()
-           << TestConQuery.lastError().type()
-           << TestConQuery.lastError().text();
+//  qDebug() << DBGINFO << boResult
+//           << TestConQuery.lastError().number()
+//           << TestConQuery.lastError()
+//           << TestConQuery.lastError().type()
+//           << TestConQuery.lastError().text();
   if(boResult)
   {
     ui->Lb_ConnStatus->setText("CONNECTED");
@@ -805,7 +824,7 @@ void MainWindow::timerEvent(QTimerEvent * event)
   {
     static bool boWasConnected = false;
 
-    qDebug() << DBGINFO << "AUX" << AUX_TIMER_PERIOD << boWasConnected;
+    //qDebug() << DBGINFO << "AUX" << AUX_TIMER_PERIOD << boWasConnected;
 
     //check connection before reading from JAMIC...
     if(fnTestConnection() < 0)
@@ -896,6 +915,18 @@ void MainWindow::on_tableView_Vehicles_clicked(const QModelIndex &index)
   //cookie
   boResult = boResult;
   qDebug() << DBGINFO << index.row() << " " << index.column();
+  int iVehicleId = mVehicleModel->data(mVehicleModel->index(index.row(), 0)).toInt(&boResult);
+  if (boResult)
+  {
+    iLastSelectedVehicleForStatistic = iVehicleId;
+  }
+  else
+  {
+    iLastSelectedVehicleForStatistic = -1;
+  }
+
+
+  //qDebug() << DBGINFO << boResult  << iLastSelectedVehicleForStatistic;
 }
 
 
@@ -1011,7 +1042,7 @@ int MainWindow::fnTestVehicleChanged(void)
   QSqlQuery FlagTableQuerySelect;
   FlagTableQuerySelect.prepare("SELECT `FlagValue` FROM `tFlags` WHERE `FlagName` = 'VEHICLE_TABLE_CHANGED';");
   boResult = FlagTableQuerySelect.exec();
-  qDebug() << DBGINFO << "Flag table select" << boResult;
+  //qDebug() << DBGINFO << "Flag table select" << boResult;
   if(boResult && FlagTableQuerySelect.size() == 1)
   {
     //Test Flag denoting change in Vehicle table
@@ -1961,6 +1992,75 @@ void MainWindow::on_Btn_HtmlTest_clicked()
 
 //**********************
 //* EMAIL CLIENT - END *
+//**********************
+
+
+//**********************
+//*    STATISTIC       *
+//**********************
+//"To" date must be later than "From" date
+void MainWindow::on_calendarWidget_statisticFrom_selectionChanged()
+{
+  ui->calendarWidget_statisticTo->setMinimumDate(ui->calendarWidget_statisticFrom->selectedDate());
+}
+
+void MainWindow::on_btnMakeFailureStatistic_clicked()
+{
+  QDate StatisticDateFrom;
+  QDate StatisticDateTo;
+  QString asStatisticDateFrom;
+  QString asStatisticDateTo;
+  QString asTemp;
+  bool boResult = false;
+  //get desired data for statistic
+  StatisticDateFrom = ui->calendarWidget_statisticFrom->selectedDate();
+  StatisticDateTo   = ui->calendarWidget_statisticTo->selectedDate();
+  asStatisticDateFrom = StatisticDateFrom.toString("yyyy'-'MM'-'dd");
+  asStatisticDateTo = StatisticDateTo.toString("yyyy'-'MM'-'dd");
+  qDebug() << DBGINFO << "Vehicle:" << iLastSelectedVehicleForStatistic << "DATE FROM:" << asStatisticDateFrom << "TO:" << asStatisticDateTo;
+
+  //ASSEMBE QUERY
+  asTemp.clear();
+  asTemp = QString
+           (
+              "SELECT %1 AS `VehicleId`, `EventIndex` , `SourceUnit` , COUNT( * ) AS `FailureCount` "
+              "FROM "
+              "("
+              "  SELECT * "
+              "  FROM `tVehicleID%1EventLog` "
+              "  WHERE `EventDate` >= \"%2\" "
+              "  AND   `EventDate` <= \"%3\" "
+              ")"
+              "AS `ttDataRangeI` "
+              "GROUP BY `EventIndex` , `SourceUnit` "
+            ).arg(iLastSelectedVehicleForStatistic).arg(asStatisticDateFrom).arg(asStatisticDateTo);
+  qDebug() << DBGINFO << asTemp;
+  QSqlQuery StaticticQuery;
+  boResult = StaticticQuery.exec(asTemp);
+  qDebug() << DBGINFO << boResult << StaticticQuery.lastError().text();
+  if (boResult && StaticticQuery.size() >= 1)
+  {
+    for (int i = 0; i < StaticticQuery.size(); ++i)
+    {
+      StaticticQuery.next();
+      qDebug() << DBGINFO
+               <<  i
+               <<  StaticticQuery.value("EventIndex").toString()
+               <<  StaticticQuery.value("SourceUnit").toString()
+               <<  StaticticQuery.value("FailureCount").toString()
+               <<  StaticticQuery.value(2).toInt();
+      QSqlRecord tmpRecord = StaticticQuery.record();
+      boResult = mFailureCountModel->insertRecord(-1, tmpRecord);
+      qDebug() << DBGINFO << boResult << mFailureCountModel->lastError().text() << tmpRecord;
+    }
+
+  }
+  //mFailureCountModel->select();
+  mFailureCountModel->submitAll();
+  mFailureCountModel->select();
+}
+//**********************
+//* STATISTIC    - END *
 //**********************
 
 
