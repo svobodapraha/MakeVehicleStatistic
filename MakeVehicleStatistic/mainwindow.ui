@@ -7,39 +7,19 @@
     <x>0</x>
     <y>0</y>
     <width>1113</width>
-    <height>758</height>
+    <height>891</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <widget class="QTableWidget" name="tableWidget_QueryStatus">
-    <property name="geometry">
-     <rect>
-      <x>20</x>
-      <y>300</y>
-      <width>861</width>
-      <height>151</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QTableView" name="tableView_Vehicles">
-    <property name="geometry">
-     <rect>
-      <x>20</x>
-      <y>50</y>
-      <width>861</width>
-      <height>231</height>
-     </rect>
-    </property>
-   </widget>
    <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>20</x>
       <y>10</y>
-      <width>621</width>
+      <width>861</width>
       <height>31</height>
      </rect>
     </property>
@@ -73,9 +53,16 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="btnMakeFailureStatistic">
+      <widget class="QPushButton" name="btnMakeVehicleFailureStatistic">
        <property name="text">
-        <string>Make Statistic</string>
+        <string>Make Vehicle Statistic</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnMakeProjectFailureStatistic">
+       <property name="text">
+        <string>Make Project Statistic</string>
        </property>
       </widget>
      </item>
@@ -85,7 +72,7 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>670</y>
+      <y>770</y>
       <width>161</width>
       <height>16</height>
      </rect>
@@ -98,7 +85,7 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>690</y>
+      <y>790</y>
       <width>191</width>
       <height>16</height>
      </rect>
@@ -110,8 +97,8 @@
    <widget class="QLabel" name="lbDebug1">
     <property name="geometry">
      <rect>
-      <x>820</x>
-      <y>670</y>
+      <x>800</x>
+      <y>780</y>
       <width>47</width>
       <height>13</height>
      </rect>
@@ -141,20 +128,10 @@
    <widget class="QPlainTextEdit" name="plainTextEditDebug">
     <property name="geometry">
      <rect>
-      <x>140</x>
-      <y>650</y>
+      <x>100</x>
+      <y>770</y>
       <width>651</width>
       <height>71</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QTableView" name="tableView_FailureCount">
-    <property name="geometry">
-     <rect>
-      <x>20</x>
-      <y>470</y>
-      <width>861</width>
-      <height>171</height>
      </rect>
     </property>
    </widget>
@@ -177,6 +154,56 @@
       <height>155</height>
      </rect>
     </property>
+   </widget>
+   <widget class="QWidget" name="">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>50</y>
+      <width>861</width>
+      <height>711</height>
+     </rect>
+    </property>
+    <layout class="QVBoxLayout" name="verticalLayout_2">
+     <item>
+      <widget class="QTableView" name="tableView_Vehicles"/>
+     </item>
+     <item>
+      <widget class="QTableWidget" name="tableWidget_QueryStatus"/>
+     </item>
+     <item>
+      <widget class="QTableView" name="tableView_FailureCount"/>
+     </item>
+     <item>
+      <widget class="QTableView" name="tableView_ProjectFailureCount"/>
+     </item>
+    </layout>
+   </widget>
+   <widget class="QWidget" name="">
+    <property name="geometry">
+     <rect>
+      <x>900</x>
+      <y>670</y>
+      <width>141</width>
+      <height>54</height>
+     </rect>
+    </property>
+    <layout class="QVBoxLayout" name="verticalLayout_3">
+     <item>
+      <widget class="QPushButton" name="btn_ClearFailureCount">
+       <property name="text">
+        <string>VEHICLE CLEAR</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_ClearProjectFailureCount">
+       <property name="text">
+        <string>PROJECT CLEAR</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menuBar">

@@ -402,7 +402,8 @@ MainWindow::MainWindow(QWidget *parent) :
 
   //connest to SQLITE Database...
   LocalStatisticDB = QSqlDatabase::addDatabase("QSQLITE", "StatisticDB");
-  mFailureCountModel = new QSqlRelationalTableModel(this, LocalStatisticDB);
+  mFailureCountModel =        new QSqlRelationalTableModel(this, LocalStatisticDB);
+  mProjectFailureCountModel = new QSqlRelationalTableModel(this, LocalStatisticDB);
   LocalStatisticDB.setDatabaseName(":memory:");
   boResult = LocalStatisticDB.open();
   if(boResult)
@@ -415,7 +416,8 @@ MainWindow::MainWindow(QWidget *parent) :
   }
 
   QSqlQuery StatisticQuery(LocalStatisticDB);
-  //create statistic table:
+
+  //create statistic table for vehicles:
   boResult = StatisticQuery.exec("DROP TABLE tFailureCount; ");
   boResult = StatisticQuery.exec
   (
@@ -429,19 +431,39 @@ MainWindow::MainWindow(QWidget *parent) :
   );
   qDebug() << DBGINFO << boResult << "create" << StatisticQuery.lastError().text();
 
-  //Test data
+//  //Test data
+//  boResult = StatisticQuery.exec
+//  (
+//    "insert into tFailureCount values (1, 1, 2, \"JAMIC\", 2);"
+//  );
+//  qDebug() << boResult << "insert" << StatisticQuery.lastError().text();
+
+  //create statistic table for project:
+  boResult = StatisticQuery.exec("DROP TABLE tProjectFailureCount; ");
   boResult = StatisticQuery.exec
   (
-    "insert into tFailureCount values (1, 2, \"JAMIC\", 2);"
+       "create table tProjectFailureCount ("
+       "id integer primary key autoincrement, "
+       "ProjectId int, "
+       "EventIndex int, "
+       "SourceUnit varchar, "
+       "ProjectFailureCount int "
+       ");"
   );
-  qDebug() << boResult << "insert" << StatisticQuery.lastError().text();
+  qDebug() << DBGINFO << boResult << "create" << StatisticQuery.lastError().text();
+
+
 
   //set models a tables
   mFailureCountModel->setEditStrategy(QSqlTableModel::OnManualSubmit);
   mFailureCountModel->setTable("tFailureCount");
   boResult = mFailureCountModel->select();
   ui->tableView_FailureCount->setModel(mFailureCountModel);
-  qDebug() << boResult << "select";
+
+  mProjectFailureCountModel->setEditStrategy(QSqlTableModel::OnManualSubmit);
+  mProjectFailureCountModel->setTable("tProjectFailureCount");
+  boResult = mProjectFailureCountModel->select();
+  ui->tableView_ProjectFailureCount->setModel(mProjectFailureCountModel);
 
 
   //start timers
@@ -915,7 +937,7 @@ void MainWindow::on_tableView_Vehicles_clicked(const QModelIndex &index)
   //cookie
   boResult = boResult;
   qDebug() << DBGINFO << index.row() << " " << index.column();
-  int iVehicleId = mVehicleModel->data(mVehicleModel->index(index.row(), 0)).toInt(&boResult);
+  int iVehicleId = mVehicleModel->data(mVehicleModel->index(index.row(), mVehicleModel->fieldIndex("idVehicle"))).toInt(&boResult);
   if (boResult)
   {
     iLastSelectedVehicleForStatistic = iVehicleId;
@@ -925,8 +947,18 @@ void MainWindow::on_tableView_Vehicles_clicked(const QModelIndex &index)
     iLastSelectedVehicleForStatistic = -1;
   }
 
+  int iProjectId = mVehicleModel->data(mVehicleModel->index(index.row(), mVehicleModel->fieldIndex("tProjectList_idProject"))).toInt(&boResult);
+  if (boResult)
+  {
+    iLastSelectedProjectForStatistic = iProjectId;
+  }
+  else
+  {
+    iLastSelectedProjectForStatistic = -1;
+  }
 
-  //qDebug() << DBGINFO << boResult  << iLastSelectedVehicleForStatistic;
+
+  //qDebug() << DBGINFO << boResult  << iLastSelectedVehicleForStatistic << iLastSelectedProjectForStatistic;
 }
 
 
@@ -1998,13 +2030,81 @@ void MainWindow::on_Btn_HtmlTest_clicked()
 //**********************
 //*    STATISTIC       *
 //**********************
+//clear model
+
+
+
 //"To" date must be later than "From" date
 void MainWindow::on_calendarWidget_statisticFrom_selectionChanged()
 {
   ui->calendarWidget_statisticTo->setMinimumDate(ui->calendarWidget_statisticFrom->selectedDate());
 }
 
-void MainWindow::on_btnMakeFailureStatistic_clicked()
+//Project
+void MainWindow::on_btnMakeProjectFailureStatistic_clicked()
+{
+  bool boResult;
+  QString asTemp;
+  //clear previous results
+  on_btn_ClearFailureCount_clicked();
+  on_btn_ClearProjectFailureCount_clicked();
+
+  //make sum pro individual vehicles
+  for (int i = 0; i < mVehicleModel->rowCount(); ++i)
+  {
+    int iProjectId = mVehicleModel->data(mVehicleModel->index(i, mVehicleModel->fieldIndex("tProjectList_idProject"))).toInt(&boResult);
+    if (!boResult) iProjectId = -1;
+    if(iProjectId != iLastSelectedProjectForStatistic) continue;
+
+    int iVehicleId = mVehicleModel->data(mVehicleModel->index(i, mVehicleModel->fieldIndex("idVehicle"))).toInt(&boResult);
+    if(!boResult) iVehicleId = -1;
+    if(iVehicleId > 0)
+    {
+      iLastSelectedVehicleForStatistic = iVehicleId;
+      on_btnMakeVehicleFailureStatistic_clicked();
+    }
+    qDebug() << DBGINFO << "Static for Project: " << iLastSelectedProjectForStatistic;
+  }
+
+  //make sum for projects
+  asTemp.clear();
+  asTemp = QString
+           (
+              "SELECT %1 AS `ProjectId`, `EventIndex` , `SourceUnit` , SUM(`FailureCount`) AS `ProjectFailureCount`  "
+              "FROM  "
+              "("
+              "  SELECT * "
+              "  FROM `tFailureCount` "
+              ")"
+              "AS `ttDataRangeI` "
+              "GROUP BY `EventIndex` , `SourceUnit` "
+            ).arg(iLastSelectedProjectForStatistic);
+  qDebug() << DBGINFO << asTemp;
+
+  QSqlQuery StatisticQuery(LocalStatisticDB);
+  boResult = StatisticQuery.exec(asTemp);
+  qDebug() << DBGINFO << boResult << StatisticQuery.lastError().text();
+  if (boResult)
+  {
+    while (StatisticQuery.next())  //SQLITE does not return size...
+    {
+      qDebug() << DBGINFO
+               <<  StatisticQuery.value("EventIndex").toString()
+               <<  StatisticQuery.value("SourceUnit").toString()
+               <<  StatisticQuery.value("ProjectFailureCount").toString();
+      QSqlRecord tmpRecord = StatisticQuery.record();
+      boResult = mProjectFailureCountModel->insertRecord(-1, tmpRecord);
+      qDebug() << DBGINFO << boResult << mProjectFailureCountModel->lastError().text() << tmpRecord;
+    }
+
+  }
+  mProjectFailureCountModel->submitAll();
+  mProjectFailureCountModel->select();
+
+}
+
+//Vehicle
+void MainWindow::on_btnMakeVehicleFailureStatistic_clicked()
 {
   QDate StatisticDateFrom;
   QDate StatisticDateTo;
@@ -2035,27 +2135,26 @@ void MainWindow::on_btnMakeFailureStatistic_clicked()
               "GROUP BY `EventIndex` , `SourceUnit` "
             ).arg(iLastSelectedVehicleForStatistic).arg(asStatisticDateFrom).arg(asStatisticDateTo);
   qDebug() << DBGINFO << asTemp;
-  QSqlQuery StaticticQuery;
-  boResult = StaticticQuery.exec(asTemp);
-  qDebug() << DBGINFO << boResult << StaticticQuery.lastError().text();
-  if (boResult && StaticticQuery.size() >= 1)
+  QSqlQuery StatisticQuery;
+  boResult = StatisticQuery.exec(asTemp);
+  qDebug() << DBGINFO << boResult << StatisticQuery.lastError().text();
+  if (boResult && StatisticQuery.size() >= 1)
   {
-    for (int i = 0; i < StaticticQuery.size(); ++i)
+    for (int i = 0; i < StatisticQuery.size(); ++i)
     {
-      StaticticQuery.next();
+      StatisticQuery.next();
       qDebug() << DBGINFO
                <<  i
-               <<  StaticticQuery.value("EventIndex").toString()
-               <<  StaticticQuery.value("SourceUnit").toString()
-               <<  StaticticQuery.value("FailureCount").toString()
-               <<  StaticticQuery.value(2).toInt();
-      QSqlRecord tmpRecord = StaticticQuery.record();
+               <<  StatisticQuery.value("EventIndex").toString()
+               <<  StatisticQuery.value("SourceUnit").toString()
+               <<  StatisticQuery.value("FailureCount").toString()
+               <<  StatisticQuery.value(2).toInt();
+      QSqlRecord tmpRecord = StatisticQuery.record();
       boResult = mFailureCountModel->insertRecord(-1, tmpRecord);
       qDebug() << DBGINFO << boResult << mFailureCountModel->lastError().text() << tmpRecord;
     }
 
   }
-  //mFailureCountModel->select();
   mFailureCountModel->submitAll();
   mFailureCountModel->select();
 }
@@ -2064,3 +2163,20 @@ void MainWindow::on_btnMakeFailureStatistic_clicked()
 //**********************
 
 
+
+
+
+
+void MainWindow::on_btn_ClearFailureCount_clicked()
+{
+  mFailureCountModel->removeRows(0, mFailureCountModel->rowCount());
+  mFailureCountModel->submitAll();
+  mFailureCountModel->select();
+}
+
+void MainWindow::on_btn_ClearProjectFailureCount_clicked()
+{
+  mProjectFailureCountModel->removeRows(0, mProjectFailureCountModel->rowCount());
+  mProjectFailureCountModel->submitAll();
+  mProjectFailureCountModel->select();
+}

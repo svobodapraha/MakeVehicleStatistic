@@ -87,12 +87,15 @@ private:
   bool boGeneralDebugOK;
   QUdpSocket * UdpSocketOBU;
   int iLastSelectedVehicleForStatistic;
+  int iLastSelectedProjectForStatistic;
+
 
 
 //models
   VehicleRelationalTableModel *mVehicleModel;
   QSqlRelationalTableModel    *mSpamModel;
   QSqlRelationalTableModel    *mFailureCountModel;
+  QSqlRelationalTableModel    *mProjectFailureCountModel;
 
 //timer and comm part
 protected:
@@ -138,8 +141,12 @@ private slots:
 
   void on_Btn_SendTestEmail_clicked();
   void on_Btn_HtmlTest_clicked();
-  void on_btnMakeFailureStatistic_clicked();
   void on_calendarWidget_statisticFrom_selectionChanged();
+  void on_btnMakeVehicleFailureStatistic_clicked();
+  void on_btnMakeProjectFailureStatistic_clicked();
+
+  void on_btn_ClearFailureCount_clicked();
+  void on_btn_ClearProjectFailureCount_clicked();
 };
 
 
