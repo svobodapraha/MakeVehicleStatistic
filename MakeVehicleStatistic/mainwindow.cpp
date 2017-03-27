@@ -2180,3 +2180,21 @@ void MainWindow::on_btn_ClearProjectFailureCount_clicked()
   mProjectFailureCountModel->submitAll();
   mProjectFailureCountModel->select();
 }
+
+void MainWindow::on_btn_LastWeek_clicked()
+{
+    ui->calendarWidget_statisticFrom->setSelectedDate((QDate::currentDate()).addDays(-7));
+    ui->calendarWidget_statisticTo->setSelectedDate(QDate::currentDate());
+}
+
+void MainWindow::on_btn_LastMonth_clicked()
+{
+  ui->calendarWidget_statisticFrom->setSelectedDate((QDate::currentDate()).addMonths(-1));
+  ui->calendarWidget_statisticTo->setSelectedDate(QDate::currentDate());
+}
+
+void MainWindow::on_btn_LastYear_clicked()
+{
+  ui->calendarWidget_statisticFrom->setSelectedDate((QDate::currentDate()).addYears(-1));
+  ui->calendarWidget_statisticTo->setSelectedDate(QDate::currentDate());
+}

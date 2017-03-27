@@ -147,6 +147,9 @@ private slots:
 
   void on_btn_ClearFailureCount_clicked();
   void on_btn_ClearProjectFailureCount_clicked();
+  void on_btn_LastWeek_clicked();
+  void on_btn_LastMonth_clicked();
+  void on_btn_LastYear_clicked();
 };
 
 

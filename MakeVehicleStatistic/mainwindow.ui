@@ -155,7 +155,7 @@
      </rect>
     </property>
    </widget>
-   <widget class="QWidget" name="">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>20</x>
@@ -179,13 +179,13 @@
      </item>
     </layout>
    </widget>
-   <widget class="QWidget" name="">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>900</x>
       <y>670</y>
       <width>141</width>
-      <height>54</height>
+      <height>141</height>
      </rect>
     </property>
     <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -200,6 +200,27 @@
       <widget class="QPushButton" name="btn_ClearProjectFailureCount">
        <property name="text">
         <string>PROJECT CLEAR</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_LastWeek">
+       <property name="text">
+        <string>LAST WEEK</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_LastMonth">
+       <property name="text">
+        <string>LAST MONTH</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_LastYear">
+       <property name="text">
+        <string>LAST YEAR</string>
        </property>
       </widget>
      </item>
