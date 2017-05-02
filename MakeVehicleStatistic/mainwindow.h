@@ -88,6 +88,8 @@ private:
   QUdpSocket * UdpSocketOBU;
   int iLastSelectedVehicleForStatistic;
   int iLastSelectedProjectForStatistic;
+  QDate StatisticDateFrom;
+  QDate StatisticDateTo;
 
 
 

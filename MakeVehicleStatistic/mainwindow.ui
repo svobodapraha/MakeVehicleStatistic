@@ -32,13 +32,6 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="btn_Debug1">
-       <property name="text">
-        <string>Debug1</string>
-       </property>
-      </widget>
-     </item>
-     <item>
       <widget class="QPushButton" name="Btn_SendTestEmail">
        <property name="text">
         <string>SendTestEmail</string>
@@ -63,6 +56,13 @@
       <widget class="QPushButton" name="btnMakeProjectFailureStatistic">
        <property name="text">
         <string>Make Project Statistic</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_Debug1">
+       <property name="text">
+        <string>Male Table in tram db</string>
        </property>
       </widget>
      </item>

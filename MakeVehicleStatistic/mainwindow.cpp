@@ -921,14 +921,6 @@ void MainWindow::timerEvent(QTimerEvent * event)
 
 
 
-void MainWindow::on_btn_Debug1_clicked()
-{
-  //debug to send request
-  if(VehicleList.isEmpty()) return;
-  TVehicle *tmpVehicle = VehicleList.at(0);
-  if(tmpVehicle == NULL) return;
-
-}
 
 
 void MainWindow::on_tableView_Vehicles_clicked(const QModelIndex &index)
@@ -2106,8 +2098,7 @@ void MainWindow::on_btnMakeProjectFailureStatistic_clicked()
 //Vehicle
 void MainWindow::on_btnMakeVehicleFailureStatistic_clicked()
 {
-  QDate StatisticDateFrom;
-  QDate StatisticDateTo;
+
   QString asStatisticDateFrom;
   QString asStatisticDateTo;
   QString asTemp;
@@ -2158,6 +2149,271 @@ void MainWindow::on_btnMakeVehicleFailureStatistic_clicked()
   mFailureCountModel->submitAll();
   mFailureCountModel->select();
 }
+
+
+
+
+void MainWindow::on_btn_Debug1_clicked()
+{
+  //debug to send request
+  //if(VehicleList.isEmpty()) return;
+  //TVehicle *tmpVehicle = VehicleList.at(0);
+  //if(tmpVehicle == NULL) return;
+
+  QSqlQuery StatisticDataQuery;
+  bool boResult;
+
+  //create table
+  ui->plainTextEditDebug->appendPlainText("Create Table");
+
+  //Table name
+  QString asTableName = QString
+  (
+    "tStatisticData_Proj%1_from%2_to%3"
+  )
+  .arg(iLastSelectedProjectForStatistic)
+  .arg(StatisticDateFrom.toString("yyyy'_'MM'_'dd"))
+  .arg(StatisticDateTo.toString("yyyy'_'MM'_'dd"));
+
+  //delete old table
+  QString asQueryText = QString
+  (
+    "drop table %1 "
+    ";"
+  ).arg(asTableName);
+  boResult = StatisticDataQuery.exec(asQueryText);
+  qDebug() << DBGINFO << "drop" << boResult  << StatisticDataQuery.lastError().text();
+
+
+
+  //Create table
+  asQueryText = QString
+  (
+    "create table if not exists %1 ("
+    "id int unsigned not null auto_increment, "
+    "EventIndex int, "
+    "SourceUnit enum('MASTER1', 'MASTER2', 'SLAVE', 'JAMIC', 'NOTE'), "
+    "Sum int, "
+    "Average float, "
+    "PRIMARY KEY (id)"
+    ");"
+  ).arg(asTableName);
+
+  ui->plainTextEditDebug->appendPlainText(asQueryText);
+
+  boResult = StatisticDataQuery.exec(asQueryText);
+  qDebug() << DBGINFO << "create" << boResult  << StatisticDataQuery.lastError().text();
+
+
+
+  //Empty table
+  asQueryText = QString
+  (
+    "truncate table %1;"
+  ).arg(asTableName);
+
+  boResult = StatisticDataQuery.exec(asQueryText);
+  qDebug() << DBGINFO << "empty" << boResult  << StatisticDataQuery.lastError().text();
+
+  int iIndexVehicleId    = mFailureCountModel->fieldIndex("VehicleId");
+  int iIndexEventIndex   = mFailureCountModel->fieldIndex("EventIndex");
+  int iIndexSourceUnit   = mFailureCountModel->fieldIndex("SourceUnit");
+  int iIndexFailureCount = mFailureCountModel->fieldIndex("FailureCount");
+
+  if
+  (
+    iIndexVehicleId  < 0   ||
+    iIndexEventIndex < 0   ||
+    iIndexSourceUnit < 0   ||
+    iIndexFailureCount < 0
+  )
+  {
+    qDebug() << DBGINFO << "problem find indexes";
+    return;
+  }
+
+
+  for (int i = 0; i < mFailureCountModel->rowCount(); ++i)
+  {
+     int iVehicleId              = -1;
+     int iEventIndex             = -1;
+     QString asSourceUnit        = "";
+     int iFailureCount           = -1;
+
+     iVehicleId    =  mFailureCountModel->data(mFailureCountModel->index(i, iIndexVehicleId)).toInt();
+     iEventIndex   =  mFailureCountModel->data(mFailureCountModel->index(i, iIndexEventIndex)).toInt();
+     iFailureCount =  mFailureCountModel->data(mFailureCountModel->index(i, iIndexFailureCount)).toInt();
+     asSourceUnit  =  mFailureCountModel->data(mFailureCountModel->index(i, iIndexSourceUnit)).toString();
+
+     qDebug() << DBGINFO << iVehicleId << iEventIndex << asSourceUnit << iFailureCount;
+
+     //select iEvent Index/ Source unit in table
+     asQueryText = QString
+     (
+       "select  id from %1 "
+       "where  `EventIndex` =  %2 "
+       "and    `SourceUnit` = '%3' "
+       ";"
+     )
+     .arg(asTableName)
+     .arg(iEventIndex)
+     .arg(asSourceUnit);
+
+     boResult = StatisticDataQuery.exec(asQueryText);
+     qDebug() << DBGINFO << asQueryText << "select" << boResult  << StatisticDataQuery.lastError().text();
+
+     //combination index/source already found - update
+     int iCurrentId = -1;
+     if(boResult && StatisticDataQuery.size() == 1)
+     {
+       StatisticDataQuery.next();
+       iCurrentId = StatisticDataQuery.value("id").toInt();
+
+     }
+
+     //combination index/source already not found - insert
+     if(boResult && StatisticDataQuery.size() == 0)
+     {
+       asQueryText = QString
+       (
+         "insert  into %1 "
+         "(EventIndex, SourceUnit) "
+         "values "
+         "(%2, '%3') "
+         ";"
+       )
+       .arg(asTableName)
+       .arg(iEventIndex)
+       .arg(asSourceUnit);
+
+       boResult = StatisticDataQuery.exec(asQueryText);
+       qDebug() << DBGINFO << asQueryText << "insert" << boResult  << StatisticDataQuery.lastError().text();
+
+       //get id
+       asQueryText = QString
+       (
+         "select   LAST_INSERT_ID( ) AS lastid from %1 "
+          ";"
+       )
+       .arg(asTableName);
+
+       boResult = StatisticDataQuery.exec(asQueryText);
+       qDebug() << DBGINFO << asQueryText << "last id" << iCurrentId << boResult  << StatisticDataQuery.lastError().text();
+
+       if(boResult)
+       {
+         StatisticDataQuery.next();
+         iCurrentId = StatisticDataQuery.value("lastid").toInt();
+       }
+       else
+       {
+         iCurrentId -1;
+       }
+     }
+
+     //update record with data
+     if (iCurrentId > 0)
+     {
+       //try to add column for vehicle;
+       QString asColumnName = QString("VehicleID%1").arg(iVehicleId);
+       asQueryText = QString
+       (
+         "alter table %1 "
+         "add "
+         "%2 int"
+         ";"
+       )
+       .arg(asTableName)
+       .arg(asColumnName);
+       boResult =  StatisticDataQuery.exec(asQueryText);
+       qDebug() << DBGINFO << asQueryText << "alter"  << boResult  << StatisticDataQuery.lastError().text();
+
+       //update data to column
+       asQueryText = QString
+       (
+         "update %1 "
+         "set "
+         "%2 = %3 "
+         "where id = %4"
+         ";"
+       )
+       .arg(asTableName)
+       .arg(asColumnName)
+       .arg(iFailureCount)
+       .arg(iCurrentId);
+       boResult =  StatisticDataQuery.exec(asQueryText);
+       qDebug() << DBGINFO << asQueryText << "update"  << boResult  << StatisticDataQuery.lastError().text();
+
+       //compute sum and avarage
+       //update data to column
+       asQueryText = QString
+       (
+         "select * from %1 "
+         "where id = %4"
+         ";"
+       )
+       .arg(asTableName)
+       .arg(iCurrentId);
+       boResult =  StatisticDataQuery.exec(asQueryText);
+       qDebug() << DBGINFO << asQueryText << "select avg"  << boResult  << StatisticDataQuery.lastError().text();
+
+       int iNumberOfValidVehicles = 0;
+       int iSum = 0;
+       float fAverage = 0;
+       if(boResult && StatisticDataQuery.size() == 1)
+       {
+         //get values from all vehicles columns a calculate sum and averagae
+         StatisticDataQuery.next();
+         for (int i = 0; i < StatisticDataQuery.record().count(); ++i)
+         {
+           QString asFieldName = StatisticDataQuery.record().fieldName(i);
+           if (asFieldName.contains("VehicleID"))
+           {
+             if (!StatisticDataQuery.value(i).isNull())
+             {
+               iNumberOfValidVehicles++;
+               iSum += StatisticDataQuery.value(i).toInt();
+               qDebug() << StatisticDataQuery.record().fieldName(i) << StatisticDataQuery.value(i).toInt();
+             }
+           }
+         }
+
+         if(iNumberOfValidVehicles > 0)
+           fAverage = (float)iSum / iNumberOfValidVehicles;
+         else
+           fAverage = 0;
+
+         //update record with statistical value
+         //update data to column
+
+         asQueryText = QString
+         (
+           "update %1 "
+           "set "
+           "Sum = %2, "
+           "Average = %3 "
+           "where id = %4"
+           ";"
+         )
+         .arg(asTableName)
+         .arg(iSum)
+         .arg(fAverage)
+         .arg(iCurrentId);
+         boResult =  StatisticDataQuery.exec(asQueryText);
+         qDebug() << DBGINFO << asQueryText << "update stat"  << boResult  << StatisticDataQuery.lastError().text();
+
+
+
+       }
+
+
+     }
+
+
+  }
+
+}
+
 //**********************
 //* STATISTIC    - END *
 //**********************
